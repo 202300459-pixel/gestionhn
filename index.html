@@ -1,38 +1,29 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GestiónHN · Cargando...</title>
-<meta name="theme-color" content="#0F1923">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Epilogue:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Epilogue',sans-serif;background:#0F1923;color:#E8EDF2;height:100vh;display:flex;align-items:center;justify-content:center}
-.splash{text-align:center}
-.logo{width:64px;height:64px;background:#F5A623;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:16px;box-shadow:0 0 40px rgba(245,166,35,.3)}
-h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px}
-p{font-size:13px;color:#4A6478;margin-bottom:24px}
-.spinner{width:40px;height:40px;border:3px solid #2A3D52;border-top-color:#F5A623;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
-@keyframes spin{to{transform:rotate(360deg)}}
-.links{margin-top:28px;display:flex;gap:12px;justify-content:center}
-a{padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;transition:all .15s}
-.a-caja{background:#F5A623;color:#0F1923}
-.a-caja:hover{background:#FFB83D}
-.a-admin{background:#1E2D40;color:#8FA3B8;border:1px solid #2A3D52}
-.a-admin:hover{background:#253649;color:#E8EDF2}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio - Gestión HN</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #2c3e50, #3498db); height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }
+        .menu-container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center; width: 300px; }
+        h1 { color: #2c3e50; margin-bottom: 30px; font-size: 24px; }
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; cursor: pointer; font-size: 18px; text-decoration: none; transition: 0.3s; font-weight: bold; }
+        .btn-caja { background-color: #27ae60; color: white; }
+        .btn-caja:hover { background-color: #219150; transform: translateY(-3px); }
+        .btn-admin { background-color: #2980b9; color: white; }
+        .btn-admin:hover { background-color: #1f6391; transform: translateY(-3px); }
+        i { margin-right: 10px; }
+    </style>
 </head>
 <body>
-<div class="splash">
-  <div class="logo">⚡</div>
-  <h1>GestiónHN</h1>
-  <p>Sistema Comercial · Honduras</p>
-  <div class="spinner"></div>
-  <div class="links">
-    <a href="caja.html" class="a-caja">🖥️ Ir a Caja</a>
-    <a href="admin.html" class="a-admin">👑 Administrador</a>
-  </div>
+
+<div class="menu-container">
+    <h1><i class="fas fa-store"></i> Gestión HN</h1>
+    <a href="caja_nube.html" class="btn btn-caja"><i class="fas fa-cash-register"></i> IR A CAJA</a>
+    <a href="admin_nube.html" class="btn btn-admin"><i class="fas fa-chart-line"></i> IR A ADMIN</a>
 </div>
+
 </body>
 </html>
