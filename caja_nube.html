@@ -164,10 +164,12 @@ td.mn{font-family:var(--mono);font-size:12px}
       <div class="login-title">GestiónHN · Caja</div>
       <div class="login-sub">Punto de Venta · Cajero</div>
     </div>
-    <div class="fg"><label class="form-lbl">Usuario</label><input id="l-user" placeholder="Ingresa tu usuario" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"></div>
-    <div class="fg"><label class="form-lbl">Contraseña</label><input type="password" id="l-pass" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <button class="btn btn-amber" style="width:100%;padding:12px;font-size:14px;margin-top:4px" onclick="doLogin()">Entrar al Sistema</button>
-    <div style="text-align:center;font-size:11px;color:var(--t3);margin-top:12px">¿Eres administrador? → <span style="color:var(--amber);cursor:pointer" onclick="window.location='admin.html'">Ir a Admin</span></div>
+    <div class="fg"><label class="form-lbl">Usuario</label><input id="l-user" placeholder="Ingresa tu usuario" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()" autocomplete="username"></div>
+    <div class="fg"><label class="form-lbl">Contraseña</label><input type="password" id="l-pass" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password"></div>
+    <button class="btn btn-amber" style="width:100%;padding:12px;font-size:14px;margin-top:4px" onclick="doLogin()">⚡ Entrar al Sistema</button>
+    <div style="text-align:center;font-size:11px;color:var(--t3);margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      ¿Eres administrador? → <span style="color:var(--amber);cursor:pointer;font-weight:600" onclick="window.location='https://202300459-pixel.github.io/gestionhn/admin_nube.html'">Ir a Admin →</span>
+    </div>
   </div>
 </div>
 
@@ -176,9 +178,13 @@ td.mn{font-family:var(--mono);font-size:12px}
   <header id="topbar">
     <div class="topbar-brand"><div class="brand-dot"></div>⚡ GestiónHN · Caja</div>
     <div id="topbar-info"></div>
+    <div id="scanner-status" style="display:none;align-items:center;gap:5px;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--green)">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.5s infinite"></span>
+      Escáner conectado
+    </div>
     <div class="clock" id="clock">--:--:--</div>
     <button class="btn btn-ghost btn-sm" onclick="showCierreModal()">🔒 Cierre</button>
-    <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="color:var(--red)">Salir</button>
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="color:var(--red);border-color:rgba(231,76,60,.3)">⏻ Salir</button>
   </header>
 
   <div id="pos">
@@ -187,11 +193,17 @@ td.mn{font-family:var(--mono);font-size:12px}
       <!-- Scan -->
       <div class="scan-wrap">
         <div class="scan-row">
-          <div class="scan-field">
-            <span class="scan-icon">⚡</span>
-            <input id="scan" placeholder="Código de barra o nombre del producto..." oninput="onScan(this.value)" onkeydown="if(event.key==='Enter')addByCod()">
+          <div class="scan-field" id="scan-field">
+            <span class="scan-icon" id="scan-mode-icon">⚡</span>
+            <input id="scan" placeholder="Código de barra o nombre del producto..." oninput="onScan(this.value)" onkeydown="handleScanKey(event)">
           </div>
-          <button class="btn btn-amber" onclick="addByCod()">Agregar</button>
+          <button class="btn btn-ghost btn-sm" id="btn-scanner-mode" onclick="toggleScannerMode()" title="Activar modo escáner de código de barras" style="white-space:nowrap">
+            <span id="scanner-mode-label">📷 Modo Escáner</span>
+          </button>
+          <button class="btn btn-amber" onclick="addByCod()">+ Agregar</button>
+        </div>
+        <div id="scanner-hint" style="display:none;margin-top:7px;font-size:11px;color:var(--green);padding:5px 10px;background:rgba(46,204,113,.07);border-radius:6px;border:1px solid rgba(46,204,113,.2)">
+          ✅ <strong>Modo escáner activo</strong> — Apunta el escáner al código de barras del producto. Se agrega automáticamente al detectar el código.
         </div>
         <div class="suggestions" id="sugg"></div>
       </div>
@@ -263,7 +275,10 @@ td.mn{font-family:var(--mono);font-size:12px}
 
       <!-- Resumen día -->
       <div class="panel-card">
-        <div class="panel-title">📊 Mi Turno Hoy</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="panel-title" style="margin-bottom:0">📊 Mi Turno Hoy</div>
+          <span style="font-size:10px;color:var(--t3);font-family:var(--mono)" id="turno-fecha"></span>
+        </div>
         <div id="resumen-turno"></div>
       </div>
 
@@ -458,9 +473,14 @@ function initSeed(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// AUTH
+// AUTH — Sesión se borra al cerrar pestaña
 // ══════════════════════════════════════════════════════════════════
 let currentUser = null;
+
+// Al cerrar la pestaña, limpiar flag de sesión activa
+window.addEventListener('beforeunload', () => {
+  sessionStorage.removeItem('tab_active');
+});
 
 function doLogin(){
   const usr=document.getElementById('l-user').value.trim();
@@ -471,28 +491,40 @@ function doLogin(){
   if(!u){toast('❌ Usuario o contraseña incorrectos','er');return;}
   currentUser=u;
   S.set(K.sess,{userId:u.id,rol:u.rol,nombre:u.nombre,exp:Date.now()+8*3600000});
+  sessionStorage.setItem('tab_active','1');
+  showApp(u);
+}
+
+function showApp(u){
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('app').style.flexDirection='column';
-  document.getElementById('topbar-info').textContent=`👤 ${u.nombre}  ·  📅 ${today()}`;
+  document.getElementById('topbar-info').innerHTML=`<span style="font-size:11px;color:var(--t3)">👤 <strong style="color:var(--t1)">${u.nombre}</strong></span>`;
+  const tfd=document.getElementById('turno-fecha');
+  if(tfd)tfd.textContent=today();
   startClock();
   refreshResumen();
   renderUltimas();
-  document.getElementById('scan').focus();
+  setTimeout(()=>document.getElementById('scan').focus(),100);
 }
 
 function doLogout(){
   if(posItems.length&&!confirm('Hay artículos en la venta actual. ¿Salir de todas formas?'))return;
-  currentUser=null; S.set(K.sess,null);
+  currentUser=null;
+  S.set(K.sess,null);
+  sessionStorage.removeItem('tab_active');
   document.getElementById('login').style.display='flex';
   document.getElementById('app').style.display='none';
+  document.getElementById('l-user').value='';
   document.getElementById('l-pass').value='';
 }
 
-// Auto-restore session
+// Verificar sesión — SOLO restaura si la misma pestaña sigue activa
 function checkSession(){
+  const tabActive=sessionStorage.getItem('tab_active');
   const sess=S.get(K.sess,null);
-  if(!sess||!sess.userId||sess.exp<Date.now()){
+  // Sin flag de tab activa = pestaña cerrada y reabierta → pedir login
+  if(!tabActive||!sess||!sess.userId||sess.exp<Date.now()){
     document.getElementById('login').style.display='flex';
     return;
   }
@@ -500,26 +532,116 @@ function checkSession(){
   const u=users.find(x=>x.id===sess.userId&&x.activo);
   if(!u){document.getElementById('login').style.display='flex';return;}
   currentUser=u;
-  document.getElementById('login').style.display='none';
-  document.getElementById('app').style.display='flex';
-  document.getElementById('app').style.flexDirection='column';
-  document.getElementById('topbar-info').textContent=`👤 ${u.nombre}  ·  📅 ${today()}`;
-  startClock(); refreshResumen(); renderUltimas();
-  setTimeout(()=>document.getElementById('scan').focus(),100);
+  showApp(u);
 }
+
+let lastCheckedDate=today();
 
 function startClock(){
   const tick=()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('es-HN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   tick(); setInterval(tick,1000);
-  setInterval(()=>{refreshResumen();renderUltimas();},20000);
+  setInterval(()=>{
+    refreshResumen();renderUltimas();
+    // Detectar cambio de día → cierre automático
+    const now=today();
+    if(now!==lastCheckedDate){
+      autoSaveDailySummary(lastCheckedDate);
+      lastCheckedDate=now;
+    }
+  },20000);
+}
+
+// ── CIERRE AUTOMÁTICO AL CAMBIAR DE DÍA ──
+function autoSaveDailySummary(fecha){
+  if(!currentUser)return;
+  const ventas=S.get(K.ventas,[]).filter(v=>v.fecha===fecha&&!v.anulada&&v.cajeroId===currentUser.id);
+  if(!ventas.length)return;
+  const cierres=S.get(K.cierres,[]);
+  // No duplicar si ya hay cierre manual del día
+  if(cierres.find(c=>c.fecha===fecha&&c.cajeroId===currentUser.id&&c.tipo==='manual'))return;
+  if(cierres.find(c=>c.fecha===fecha&&c.cajeroId===currentUser.id&&c.tipo==='auto'))return;
+  const tv=ventas.reduce((s,v)=>s+v.total,0);
+  const ef=ventas.filter(v=>v.pago==='EFECTIVO').reduce((s,v)=>s+v.total,0);
+  cierres.push({id:uid(),fecha,cajero:currentUser.nombre,cajeroId:currentUser.id,
+    valeIni:0,valeFin:0,totalVentas:tv,efectivo:ef,gastos:0,esperado:ef,diferencia:0,
+    tipo:'auto',obs:`Auto-cierre nocturno · ${ventas.length} ventas`});
+  S.set(K.cierres,cierres);
+  toast('📅 Cierre automático guardado para '+fecha);
 }
 
 // ══════════════════════════════════════════════════════════════════
-// POS
+// POS + MODO ESCÁNER DE CÓDIGO DE BARRAS
 // ══════════════════════════════════════════════════════════════════
 let posItems=[], pagoActual='EFECTIVO', pendingFactura=false;
+let scannerMode=false, scanBuffer='', scanTimer=null;
+
+// Togglear modo escáner
+function toggleScannerMode(){
+  scannerMode=!scannerMode;
+  const btn=document.getElementById('btn-scanner-mode');
+  const hint=document.getElementById('scanner-hint');
+  const icon=document.getElementById('scan-mode-icon');
+  const field=document.getElementById('scan-field');
+  const status=document.getElementById('scanner-status');
+  if(scannerMode){
+    btn.style.background='rgba(46,204,113,.15)';
+    btn.style.borderColor='rgba(46,204,113,.4)';
+    btn.style.color='var(--green)';
+    document.getElementById('scanner-mode-label').textContent='✅ Escáner ON';
+    hint.style.display='block';
+    icon.textContent='📷';
+    field.style.borderColor='var(--green)';
+    field.style.boxShadow='0 0 0 3px rgba(46,204,113,.15)';
+    status.style.display='flex';
+    document.getElementById('scan').placeholder='Listo para escanear código de barras...';
+    toast('📷 Modo escáner activado','ok');
+  } else {
+    btn.style.background=''; btn.style.borderColor=''; btn.style.color='';
+    document.getElementById('scanner-mode-label').textContent='📷 Modo Escáner';
+    hint.style.display='none';
+    icon.textContent='⚡';
+    field.style.borderColor='';
+    field.style.boxShadow='';
+    status.style.display='none';
+    document.getElementById('scan').placeholder='Código de barra o nombre del producto...';
+    toast('⌨️ Modo búsqueda manual','wr');
+  }
+  document.getElementById('scan').focus();
+}
+
+// Manejar tecla Enter en el campo de búsqueda
+function handleScanKey(e){
+  if(e.key==='Enter'){
+    if(scannerMode){
+      // En modo escáner, Enter = producto escaneado
+      addByCod();
+    } else {
+      addByCod();
+    }
+  } else if(e.key==='Escape'){
+    document.getElementById('sugg').style.display='none';
+    document.getElementById('scan').value='';
+  }
+}
 
 function onScan(q){
+  // En modo escáner, si detecta un código largo (≥8 chars) y termina rápido, agregar automáticamente
+  if(scannerMode && q.length>=8){
+    // Los escáneres de código de barras envían todos los caracteres muy rápido
+    clearTimeout(scanTimer);
+    scanTimer=setTimeout(()=>{
+      // Si el valor no cambió en 80ms, es un escaneo real
+      if(document.getElementById('scan').value===q){
+        const prods=S.get(K.prods,[]);
+        const exact=prods.find(p=>p.codigo===q);
+        if(exact){
+          addProd(exact.id);
+          document.getElementById('sugg').style.display='none';
+          return;
+        }
+      }
+    },80);
+  }
   const prods=S.get(K.prods,[]);
   const s=document.getElementById('sugg');
   if(!q||q.length<2){s.style.display='none';return;}
@@ -807,19 +929,27 @@ function guardarCierre(){
   toast('✅ Cierre guardado. Diferencia: '+L(dif));
 }
 
-// ── RESUMEN TURNO ──
+// ── RESUMEN TURNO CON GANANCIAS ──
 function refreshResumen(){
   if(!currentUser)return;
   const ventas=S.get(K.ventas,[]).filter(v=>v.fecha===today()&&!v.anulada&&v.cajeroId===currentUser.id);
+  const prods=S.get(K.prods,[]);
   const tv=ventas.reduce((s,v)=>s+v.total,0);
   const ef=ventas.filter(v=>v.pago==='EFECTIVO').reduce((s,v)=>s+v.total,0);
   const cr=ventas.filter(v=>v.pago==='CRÉDITO').reduce((s,v)=>s+v.total,0);
+  const tf=ventas.filter(v=>v.pago==='TARJETA').reduce((s,v)=>s+v.total,0);
+  // Ganancia bruta del turno
+  const cmv=ventas.reduce((s,v)=>s+v.items.reduce((ss,i)=>{
+    const p=prods.find(x=>x.id===i.id);return ss+(p?p.costo*i.cant:0);},0),0);
+  const ganancia=tv-cmv;
   document.getElementById('resumen-turno').innerHTML=`
-    <div style="display:grid;gap:7px">
-      <div class="histo-row"><span>Total Ventas</span><span style="font-family:var(--mono);color:var(--green);font-weight:700">${L(tv)}</span></div>
-      <div class="histo-row"><span>Efectivo</span><span style="font-family:var(--mono);color:var(--amber)">${L(ef)}</span></div>
-      <div class="histo-row"><span>Crédito</span><span style="font-family:var(--mono);color:var(--blue)">${L(cr)}</span></div>
-      <div class="histo-row"><span>Transacciones</span><span style="font-family:var(--mono)">${ventas.length}</span></div>
+    <div style="display:grid;gap:6px">
+      <div class="histo-row"><span style="font-size:12px">💰 Total Ventas</span><span style="font-family:var(--mono);color:var(--green);font-weight:700;font-size:13px">${L(tv)}</span></div>
+      <div class="histo-row"><span style="font-size:12px">💵 Efectivo</span><span style="font-family:var(--mono);color:var(--amber);font-size:12px">${L(ef)}</span></div>
+      ${tf>0?`<div class="histo-row"><span style="font-size:12px">💳 Tarjeta</span><span style="font-family:var(--mono);color:var(--blue);font-size:12px">${L(tf)}</span></div>`:''}
+      ${cr>0?`<div class="histo-row"><span style="font-size:12px">📋 Crédito</span><span style="font-family:var(--mono);color:var(--blue);font-size:12px">${L(cr)}</span></div>`:''}
+      <div class="histo-row"><span style="font-size:12px">💹 Ganancia Bruta</span><span style="font-family:var(--mono);color:var(--green);font-weight:700;font-size:13px">${L(ganancia)}</span></div>
+      <div class="histo-row"><span style="font-size:12px">🧾 Transacciones</span><span style="font-family:var(--mono);font-size:12px">${ventas.length}</span></div>
     </div>`;
 }
 

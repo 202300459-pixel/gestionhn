@@ -222,7 +222,7 @@ textarea{resize:vertical;min-height:60px}
     <div class="fg" style="margin-top:20px"><label class="fl">Usuario Administrador</label><input id="l-usr" placeholder="admin" onkeydown="if(event.key==='Enter')document.getElementById('l-pwd').focus()"></div>
     <div class="fg"><label class="fl">Contraseña</label><input type="password" id="l-pwd" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="btn btn-amber" style="width:100%;padding:12px;font-size:14px;margin-top:4px" onclick="doLogin()">Acceder al Panel</button>
-    <div style="text-align:center;font-size:11px;color:var(--t3);margin-top:12px">¿Eres cajero? → <span style="color:var(--amber);cursor:pointer" onclick="window.location='caja.html'">Ir a Caja</span></div>
+    <div style="text-align:center;font-size:11px;color:var(--t3);margin-top:12px">¿Eres cajero? → <span style="color:var(--amber);cursor:pointer;font-weight:600" onclick="window.location='https://202300459-pixel.github.io/gestionhn/caja_nube.html'">Ir a Caja →</span></div>
   </div>
 </div>
 
@@ -271,7 +271,7 @@ textarea{resize:vertical;min-height:60px}
         <div style="font-size:12px;font-weight:600;color:var(--t1)" id="sb-name">Admin</div>
         <div style="font-size:10px;color:var(--t3)">Administrador</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="color:var(--red)">Salir</button>
+      <button class="btn btn-red btn-sm" onclick="doLogout()" title="Cerrar sesión y salir">⏻ Salir</button>
     </div>
     <div class="sync-row"><div class="sync-dot"></div><span style="font-size:11px;color:var(--t3)">Sistema activo</span></div>
   </div>
@@ -283,7 +283,7 @@ textarea{resize:vertical;min-height:60px}
     <div class="tb-title" id="page-title">🏠 Dashboard</div>
     <div class="flex" style="gap:10px">
       <div class="clock" id="clock">--:--</div>
-      <button class="btn btn-ghost btn-sm" onclick="window.location='caja.html'" style="color:var(--amber)">🖥️ Ir a Caja</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.location='https://202300459-pixel.github.io/gestionhn/caja_nube.html'" style="color:var(--amber)">🖥️ Ir a Caja</button>
       <button class="btn btn-amber" id="ab" onclick="abtnAction()">+ Acción</button>
     </div>
   </header>
@@ -707,9 +707,15 @@ function initSeed(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// AUTH — SOLO ADMINS
+// AUTH — SOLO ADMINS · Sesión se borra al cerrar pestaña
 // ══════════════════════════════════════════════════════════════════
 let CU=null;
+
+// Borrar flag al cerrar pestaña → obliga re-login
+window.addEventListener('beforeunload',()=>{
+  sessionStorage.removeItem('admin_tab_active');
+});
+
 function doLogin(){
   const usr=document.getElementById('l-usr').value.trim();
   const pwd=document.getElementById('l-pwd').value;
@@ -718,28 +724,39 @@ function doLogin(){
   if(!u){toast('❌ Acceso denegado. Solo administradores.','er');return;}
   CU=u;
   S.set(K.sess,{userId:u.id,exp:Date.now()+8*3600000});
+  sessionStorage.setItem('admin_tab_active','1');
+  showAdminApp(u);
+}
+
+function showAdminApp(u){
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('sb-name').textContent=u.nombre;
   startClock(); nav('dashboard');
 }
+
 function doLogout(){
-  CU=null;S.set(K.sess,null);
+  if(!confirm('¿Cerrar sesión de administrador?'))return;
+  CU=null; S.set(K.sess,null);
+  sessionStorage.removeItem('admin_tab_active');
   document.getElementById('login').style.display='flex';
   document.getElementById('app').style.display='none';
+  document.getElementById('l-usr').value='';
   document.getElementById('l-pwd').value='';
+  toast('✅ Sesión cerrada','ok');
 }
+
 function checkSession(){
+  const tabActive=sessionStorage.getItem('admin_tab_active');
   const sess=S.get(K.sess,null);
-  if(!sess||sess.exp<Date.now()){document.getElementById('login').style.display='flex';return;}
+  // Sin flag de tab = pestaña reabierta → pedir login
+  if(!tabActive||!sess||sess.exp<Date.now()){document.getElementById('login').style.display='flex';return;}
   const u=S.get(K.users,[]).find(x=>x.id===sess.userId&&x.activo&&x.rol==='admin');
   if(!u){document.getElementById('login').style.display='flex';return;}
   CU=u;
-  document.getElementById('login').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('sb-name').textContent=u.nombre;
-  startClock(); nav('dashboard');
+  showAdminApp(u);
 }
+
 function startClock(){
   const tick=()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('es-HN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   tick();setInterval(tick,1000);
@@ -807,13 +824,21 @@ function renderDashboard(){
   const crP=creds.filter(c=>c.estado==='PENDIENTE').reduce((s,c)=>s+(c.importe-c.abono),0);
   const bj=prods.filter(p=>stSt(p)!=='ok').length;
   const cmvH=vH.reduce((s,v)=>s+v.items.reduce((ss,i)=>{const p=prods.find(x=>x.id===i.id);return ss+(p?p.costo*i.cant:0);},0),0);
+  const ganBrutaH=tvH-cmvH;
+  const utilNetaH=ganBrutaH-gH;
+  // Mes actual
+  const now=new Date();
+  const vM=ventas.filter(v=>{const d=new Date(v.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&!v.anulada;});
+  const tvM=vM.reduce((s,v)=>s+v.total,0);
+  const cmvM=vM.reduce((s,v)=>s+v.items.reduce((ss,i)=>{const p=prods.find(x=>x.id===i.id);return ss+(p?p.costo*i.cant:0);},0),0);
+  const gM=gastos.filter(g=>{const d=new Date(g.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,g)=>s+g.importe,0);
   document.getElementById('kpis-dash').innerHTML=`
     <div class="kpi am"><span class="ki">💰</span><div class="kl">Ventas Hoy</div><div class="kv">${L(tvH)}</div><div class="ks">${vH.length} transacciones</div></div>
-    <div class="kpi gn"><span class="ki">💹</span><div class="kl">Ganancia Bruta Hoy</div><div class="kv">${L(tvH-cmvH)}</div><div class="ks">sin gastos operativos</div></div>
+    <div class="kpi gn"><span class="ki">💹</span><div class="kl">Ganancia Bruta Hoy</div><div class="kv">${L(ganBrutaH)}</div><div class="ks">sin gastos operativos</div></div>
+    <div class="kpi ${utilNetaH>=0?'cy':'rd'}"><span class="ki">💎</span><div class="kl">Utilidad Neta Hoy</div><div class="kv">${L(utilNetaH)}</div><div class="ks">ventas − CMV − gastos</div></div>
     <div class="kpi rd"><span class="ki">💸</span><div class="kl">Gastos Hoy</div><div class="kv">${L(gH)}</div></div>
-    <div class="kpi bl"><span class="ki">👥</span><div class="kl">Créditos Pend.</div><div class="kv">${L(crP)}</div></div>
-    <div class="kpi pu"><span class="ki">📦</span><div class="kl">Productos</div><div class="kv">${prods.length}</div><div class="ks">${bj} con alerta de stock</div></div>
-    <div class="kpi cy"><span class="ki">💎</span><div class="kl">Balance Hoy</div><div class="kv">${L(tvH-gH)}</div><div class="ks">ventas − gastos</div></div>`;
+    <div class="kpi bl"><span class="ki">📅</span><div class="kl">Ventas del Mes</div><div class="kv">${L(tvM)}</div><div class="ks">Ganancia: ${L(tvM-cmvM-gM)}</div></div>
+    <div class="kpi pu"><span class="ki">📦</span><div class="kl">Productos</div><div class="kv">${prods.length}</div><div class="ks">${bj} con alerta de stock</div></div>`;
   document.getElementById('dash-hora').textContent=new Date().toLocaleTimeString('es-HN',{hour:'2-digit',minute:'2-digit'});
   // Últimas ventas
   const ult=ventas.filter(v=>v.fecha===hoy).slice(-8).reverse();
